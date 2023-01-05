@@ -10,33 +10,22 @@ class Board:
         self.max_x = max_x
         self.rock_paths = rock_paths
         self.x_range = max_x - min_x + 1
-        self.y_range = max_y - min_y + 2 # ONE MORE ROW FOR THE SAND
+        self.y_range = max_y - min_y + 1
         self.source = [500, 0]
         self.board = None
         self.set_initial_board(rock_paths)
 
     def set_as_stone(self, x, y):
-        self.board[y - self.min_y + 1, x - self.min_x] = 1
-
-    def is_stone(self, x, y):
-        return self.board[y - self.min_y + 1, x - self.min_x] == 1
+        self.board[y - self.min_y, x - self.min_x] = 1
 
     def set_as_sand(self, x, y):
-        self.board[y - self.min_y + 1, x - self.min_x] = 2
+        self.board[y - self.min_y, x - self.min_x] = 2
 
     def is_sand(self, x, y):
-        return self.board[y - self.min_y + 1, x - self.min_x] == 2
+        return self.board[y - self.min_y, x - self.min_x] == 2
 
     def can_go(self, x, y):
-        # if x <= self.min_x or x >= self.max_x or y <= self.min_y or y >= self.max_y:
-        #     return False
-        return self.board[y - self.min_y + 1, x - self.min_x] == 0
-
-    def get_board_value(self, x, y):
-        return self.board[y - self.min_y + 1, x - self.min_x]
-
-    def get_real_index(self, x, y):
-        return y - self.min_y + 1,  x - self.min_x
+        return self.board[y - self.min_y, x - self.min_x] == 0
 
     def draw_line(self, source, destination): #source = x,y
         if source[0] == destination[0]:
@@ -58,35 +47,42 @@ class Board:
         for rock_path in rock_paths:
             for i in range(1, len(rock_path)):
                 self.draw_line(rock_path[i - 1], rock_path[i])
+        #set floor
+        self.board[-1] = np.ones(self.x_range)
 
     def find_next_position(self, x, y):
-        try:
-            if self.can_go(x, y + 1):
-                return [x, y + 1]
-            elif self.can_go(x - 1, y + 1):
-                return [x - 1, y + 1]
-            elif self.can_go(x + 1, y + 1):
-                return [x + 1, y + 1]
-        except IndexError:
-            pass
-        return [-1, - 1] # out of range
+        if self.can_go(x, y + 1):
+            return [x, y + 1]
+        elif self.can_go(x - 1, y + 1):
+            return [x - 1, y + 1]
+        elif self.can_go(x + 1, y + 1):
+            return [x + 1, y + 1]
+        return None
 
     def simulate_sand_path(self):
         x, y = self.source
-        next_x, next_y = self.find_next_position(x, y)
-        while next_x != -1 and next_y != -1:
-            x, y = next_x, next_y
-            next_x, next_y = self.find_next_position(next_x, next_y)
-        return x, y
+        next_position = self.find_next_position(x, y)
+        while next_position:
+            x, y = next_position[0], next_position[1]
+            next_position = self.find_next_position(x, y)
+        #     print(f"next position: {next_position}")
+        # print(f"{x, y} should be sand")
+        self.set_as_sand(x, y)
+        # print(f" is {x}, {y} sand? {self.is_sand(x, y)}")
+
+    def is_source_sand(self):
+        x, y = self.source
+        return self.is_sand(x, y)
 
 
-
-def first(filename):
+def second(filename):
     rock_paths = []
     min_x = math.inf
-    # min_y = math.inf
+    min_y = 0
     max_x = - math.inf
     max_y = - math.inf
+    source_x = 500
+    source_y = 0
 
     with open(filename, "r") as f:
         for line in f:
@@ -96,33 +92,26 @@ def first(filename):
                 x = int(x)
                 y = int(y)
                 min_x = x if x < min_x else min_x
-                # min_y = y if y < min_y else min_y
                 max_x = x if x > max_x else max_x
                 max_y = y if y > max_y else max_y
                 points.append([x, y])
             rock_paths.append(points)
-
-    board = Board(min_x, 0, max_x, max_y, rock_paths)
-    np.set_printoptions(threshold=sys.maxsize)
-    print(board.board)
-    print(f"x_min = {board.min_x}, x_max = {board.max_x} y_min = {board.min_y}, x_max = {board.max_y}")
+    max_y = max_y + 2
+    distance_x = max(source_x - min_x, max_x - source_x, max_y)
+    new_min_x = source_x - distance_x
+    new_max_x = source_x + distance_x
+    print(f"min_X = {min_x}, max_x = {max_x} min_y = {min_y} max_y = {max_y} distance_x = {distance_x} new_min_x = {new_min_x} new_max_x = {new_max_x}")
+    board = Board(0, 0, 1000, max_y, rock_paths)
     count = 0
-    x = 0
-    y = 0
-    while True:
-        x, y = board.simulate_sand_path()
-        if x == -1:
-            break
+    while not board.is_source_sand():
+        board.simulate_sand_path()
         count += 1
-        print(x, y, count)
-        board.set_as_sand(x, y)
-        print(board.board)
+        print(f"is source sand? {board.is_source_sand()} count: {count}")
 
+    print(board.board)
     return count
 
 
-
 if __name__ == "__main__":
-    print(first("example.txt"))
-    # print(first("input.txt"))
-
+    print(second("example.txt"))
+    print(second("input.txt"))
